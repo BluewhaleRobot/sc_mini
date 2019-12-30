@@ -29,6 +29,9 @@
 
 using namespace std;
 
+unsigned char start_port[10]={0xA5,0xF0};
+unsigned char end_port[10]={0xA5,0xF5};
+
 M1C1_MiniDataStr M1C1_MiniData = {0};
 
 //重要: robot_rotate_compensate_dir只设置两个值+1和-1，意思是做机器人旋转角度补偿时，是按正方向补偿还是按负方向补偿。
@@ -92,12 +95,26 @@ namespace sc_m_c
 {
 	SCLaser::SCLaser()
 	{
-
+		unsigned int len = 2;
+		int result = write_port(start_port,len);
 	}
 
 	SCLaser::~SCLaser()
 	{
+		unsigned int len = 2;
+		int result = write_port(end_port,len);
+	}
 
+	void SCLaser::start()
+	{
+		unsigned int len = 2;
+		int result = write_port(start_port,len);
+	}
+
+	void SCLaser::stop()
+	{
+		unsigned int len = 2;
+		int result = write_port(end_port,len);
 	}
 	void PutRemainder2Start(unsigned char *btBuffer,int nStart,int nBufLength)
 	{
@@ -122,7 +139,7 @@ namespace sc_m_c
 	/*note: 点云数据简单滤波函数
 	 *input/output: Scan指针，指向雷达扫描的点云数据，滤波后的结果存在Scan所指向的数组里
 	 */
-	void SCLaser::PointCloudFilter(sensor_msgs::LaserScan::Ptr Scan)
+	void SCLaser::PointCloudFilter(sensor_msgs::LaserScan& Scan)
 	{
 		int i0, i1, i2, i3, i4;
 		float x0,y0, x1,y1, x2,y2, x3,y3, x4,y4, r1, r2;
@@ -141,16 +158,16 @@ namespace sc_m_c
 			i2 = i0+2; i2=i2<Size ? i2 : i2-Size;
 			i3 = i0+3; i3=i3<Size ? i3 : i3-Size;
 			DepthState = 0;
-			DepthState += (Scan->ranges[i0] != 0)*1;
-			DepthState += (Scan->ranges[i1] != 0)*2;
-			DepthState += (Scan->ranges[i2] != 0)*4;
-			DepthState += (Scan->ranges[i3] != 0)*8;
+			DepthState += (Scan.ranges[i0] != 0)*1;
+			DepthState += (Scan.ranges[i1] != 0)*2;
+			DepthState += (Scan.ranges[i2] != 0)*4;
+			DepthState += (Scan.ranges[i3] != 0)*8;
 			if(DepthState == 0x0F)
 			{//1111
-				x0 = Scan->ranges[i0] * cos(Angle_in[i0]*PI/180);
-				y0 = Scan->ranges[i0] * sin(Angle_in[i0]*PI/180);
-				x3 = Scan->ranges[i3] * cos(Angle_in[i3]*PI/180);
-				y3 = Scan->ranges[i3] * sin(Angle_in[i3]*PI/180);
+				x0 = Scan.ranges[i0] * cos(Angle_in[i0]*PI/180);
+				y0 = Scan.ranges[i0] * sin(Angle_in[i0]*PI/180);
+				x3 = Scan.ranges[i3] * cos(Angle_in[i3]*PI/180);
+				y3 = Scan.ranges[i3] * sin(Angle_in[i3]*PI/180);
 				x1 = (x3+2*x0)/3;
 				y1 = (y3+2*y0)/3;
 				x2 = (2*x3+x0)/3;
@@ -158,45 +175,45 @@ namespace sc_m_c
 				r1 = sqrt(x1*x1 + y1*y1);
 				r2 = sqrt(x2*x2 + y2*y2);
 
-				a = Scan->ranges[i0];
-				b = Scan->ranges[i1];
+				a = Scan.ranges[i0];
+				b = Scan.ranges[i1];
 				Adeta = abs(Angle_in[i0] - Angle_in[i1]) * PI/180;
 				d01 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
-				a = Scan->ranges[i1];
-				b = Scan->ranges[i2];
+				a = Scan.ranges[i1];
+				b = Scan.ranges[i2];
 				Adeta = abs(Angle_in[i1] - Angle_in[i2]) * PI/180;
 				d12 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
-				a = Scan->ranges[i2];
-				b = Scan->ranges[i3];
+				a = Scan.ranges[i2];
+				b = Scan.ranges[i3];
 				Adeta = abs(Angle_in[i2] - Angle_in[i3]) * PI/180;
 				d23 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
 
-				if(FilterRatioAdj * Scan->ranges[i1] < d01 && FilterRatioAdj * Scan->ranges[i1] < d12)
+				if(FilterRatioAdj * Scan.ranges[i1] < d01 && FilterRatioAdj * Scan.ranges[i1] < d12)
 				{
-					Scan->ranges[i1] = 0;
+					Scan.ranges[i1] = 0;
 				}
-				if(FilterRatioAdj * Scan->ranges[i2] < d12 && FilterRatioAdj * Scan->ranges[i2] < d23)
+				if(FilterRatioAdj * Scan.ranges[i2] < d12 && FilterRatioAdj * Scan.ranges[i2] < d23)
 				{
-					Scan->ranges[i2] = 0;
+					Scan.ranges[i2] = 0;
 				}
-				if(0 == Scan->ranges[i1] || 0 == Scan->ranges[i2])
+				if(0 == Scan.ranges[i1] || 0 == Scan.ranges[i2])
 				{
 					continue;
 				}
 
-				if( (Scan->ranges[i1] > r1 && Scan->ranges[i2] < r2) || (Scan->ranges[i1] < r1 && Scan->ranges[i2] > r2) )
+				if( (Scan.ranges[i1] > r1 && Scan.ranges[i2] < r2) || (Scan.ranges[i1] < r1 && Scan.ranges[i2] > r2) )
 				{
 					if(
-							(d01 > FilterRatioAdj*Scan->ranges[i0] && d12 < FilterRatioAdj*Scan->ranges[i1] && d23 < FilterRatioAdj*Scan->ranges[i2])
-							|| (d01 < FilterRatioAdj*Scan->ranges[i0] && d12 > FilterRatioAdj*Scan->ranges[i1] && d23 < FilterRatioAdj*Scan->ranges[i2])
-							|| (d01 < FilterRatioAdj*Scan->ranges[i0] && d12 < FilterRatioAdj*Scan->ranges[i1] && d23 > FilterRatioAdj*Scan->ranges[i2])
+							(d01 > FilterRatioAdj*Scan.ranges[i0] && d12 < FilterRatioAdj*Scan.ranges[i1] && d23 < FilterRatioAdj*Scan.ranges[i2])
+							|| (d01 < FilterRatioAdj*Scan.ranges[i0] && d12 > FilterRatioAdj*Scan.ranges[i1] && d23 < FilterRatioAdj*Scan.ranges[i2])
+							|| (d01 < FilterRatioAdj*Scan.ranges[i0] && d12 < FilterRatioAdj*Scan.ranges[i1] && d23 > FilterRatioAdj*Scan.ranges[i2])
 					  )
 					{
 					}
 					else
 					{
-						Scan->ranges[i1] = r1 + 0.4*(Scan->ranges[i1] - r1);
-						Scan->ranges[i2] = r2 + 0.4*(Scan->ranges[i2] - r2);
+						Scan.ranges[i1] = r1 + 0.4*(Scan.ranges[i1] - r1);
+						Scan.ranges[i2] = r2 + 0.4*(Scan.ranges[i2] - r2);
 					}
 				}
 				else
@@ -208,56 +225,56 @@ namespace sc_m_c
 			}
 			else if((DepthState & 0x0E) == 0x04)
 			{//010x
-				Scan->ranges[i2] = 0;
+				Scan.ranges[i2] = 0;
 			}
 			else if((DepthState & 0x07) == 0x02)
 			{//x010
-				Scan->ranges[i1] = 0;
+				Scan.ranges[i1] = 0;
 			}
 			else if((DepthState & 0x07) == 0x03)
 			{//x011
-				a = Scan->ranges[i0];
-				b = Scan->ranges[i1];
-				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan->ranges[i1])
+				a = Scan.ranges[i0];
+				b = Scan.ranges[i1];
+				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan.ranges[i1])
 				{
-					Scan->ranges[i1] = 0;
+					Scan.ranges[i1] = 0;
 				}
 			}
 			else if(DepthState == 0x0E)
 			{//1110
-				a = Scan->ranges[i1];
-				b = Scan->ranges[i2];
-				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan->ranges[i1])
+				a = Scan.ranges[i1];
+				b = Scan.ranges[i2];
+				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan.ranges[i1])
 				{
-					Scan->ranges[i1] = 0;
+					Scan.ranges[i1] = 0;
 				}
 			}
 			else if((DepthState & 0x0E) == 0x0C)
 			{//110x 0111
-				a = Scan->ranges[i2];
-				b = Scan->ranges[i3];
-				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan->ranges[i2])
+				a = Scan.ranges[i2];
+				b = Scan.ranges[i3];
+				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan.ranges[i2])
 				{
-					Scan->ranges[i2] = 0;
+					Scan.ranges[i2] = 0;
 				}
 			}
 			else if(DepthState == 0x07)
 			{//0111
-				a = Scan->ranges[i1];
-				b = Scan->ranges[i2];
-				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan->ranges[i2])
+				a = Scan.ranges[i1];
+				b = Scan.ranges[i2];
+				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan.ranges[i2])
 				{
-					Scan->ranges[i2] = 0;
+					Scan.ranges[i2] = 0;
 				}
 			}
 			else if(DepthState == 0x06)
 			{//0110
-				a = Scan->ranges[i1];
-				b = Scan->ranges[i2];
-				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan->ranges[i1])
+				a = Scan.ranges[i1];
+				b = Scan.ranges[i2];
+				if(sqrt(a*a + b*b - 2*a*b*cos(AngDiff)) > FilterRatioAdj * Scan.ranges[i1])
 				{
-					Scan->ranges[i1] = 0;
-					Scan->ranges[i2] = 0;
+					Scan.ranges[i1] = 0;
+					Scan.ranges[i2] = 0;
 				}
 			}
 			else
@@ -273,58 +290,58 @@ namespace sc_m_c
 			i2 = i0+2; i2=i2<Size ? i2 : i2-Size;
 			i3 = i0+3; i3=i3<Size ? i3 : i3-Size;
 			i4 = i0+4; i4=i4<Size ? i4 : i4-Size;
-			if(Scan->ranges[i0] !=0 && Scan->ranges[i1] !=0 && Scan->ranges[i2] !=0 && Scan->ranges[i3] !=0 && Scan->ranges[i4] !=0)
+			if(Scan.ranges[i0] !=0 && Scan.ranges[i1] !=0 && Scan.ranges[i2] !=0 && Scan.ranges[i3] !=0 && Scan.ranges[i4] !=0)
 			{
-				a = Scan->ranges[i0];
-				b = Scan->ranges[i1];
+				a = Scan.ranges[i0];
+				b = Scan.ranges[i1];
 				Adeta = abs(Angle_in[i0] - Angle_in[i1]) * PI/180;
 				d01 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
 
-				a = Scan->ranges[i1];
-				b = Scan->ranges[i2];
+				a = Scan.ranges[i1];
+				b = Scan.ranges[i2];
 				Adeta = abs(Angle_in[i1] - Angle_in[i2]) * PI/180;
 				d12 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
-				a = Scan->ranges[i2];
-				b = Scan->ranges[i3];
+				a = Scan.ranges[i2];
+				b = Scan.ranges[i3];
 				Adeta = abs(Angle_in[i2] - Angle_in[i3]) * PI/180;
 				d23 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
-				a = Scan->ranges[i3];
-				b = Scan->ranges[i4];
+				a = Scan.ranges[i3];
+				b = Scan.ranges[i4];
 				Adeta = abs(Angle_in[i3] - Angle_in[i4]) * PI/180;
 				d34 = sqrt(a*a + b*b -2*a*b*cos(Adeta));
 				if(
-						d01 < FilterRatioAdj * Scan->ranges[i1] && d34 < FilterRatioAdj * Scan->ranges[i3]
-						&& (d12 > FilterRatioAdj * Scan->ranges[i2] || d23 > FilterRatioAdj * Scan->ranges[i2])
+						d01 < FilterRatioAdj * Scan.ranges[i1] && d34 < FilterRatioAdj * Scan.ranges[i3]
+						&& (d12 > FilterRatioAdj * Scan.ranges[i2] || d23 > FilterRatioAdj * Scan.ranges[i2])
 				  )
 				{
 					if(
-							(Scan->ranges[i0] < Scan->ranges[i1] && Scan->ranges[i3] < Scan->ranges[i4])
-							|| (Scan->ranges[i0] > Scan->ranges[i1] && Scan->ranges[i3] > Scan->ranges[i4])
+							(Scan.ranges[i0] < Scan.ranges[i1] && Scan.ranges[i3] < Scan.ranges[i4])
+							|| (Scan.ranges[i0] > Scan.ranges[i1] && Scan.ranges[i3] > Scan.ranges[i4])
 					  )
 					{
-						Scan->ranges[i2] = (Scan->ranges[i1] + Scan->ranges[i3])/2;
+						Scan.ranges[i2] = (Scan.ranges[i1] + Scan.ranges[i3])/2;
 					}
 				}
 			}
-			else if(Scan->ranges[i0] ==0 && Scan->ranges[i1] !=0 && Scan->ranges[i2] !=0 && Scan->ranges[i3] !=0 && Scan->ranges[i4] !=0)
+			else if(Scan.ranges[i0] ==0 && Scan.ranges[i1] !=0 && Scan.ranges[i2] !=0 && Scan.ranges[i3] !=0 && Scan.ranges[i4] !=0)
 			{
-				x2 = Scan->ranges[i2] * cos(Angle_in[i2]*PI/180);
-				y2 = Scan->ranges[i2] * sin(Angle_in[i2]*PI/180);
-				x3 = Scan->ranges[i3] * cos(Angle_in[i3]*PI/180);
-				y3 = Scan->ranges[i3] * sin(Angle_in[i3]*PI/180);
+				x2 = Scan.ranges[i2] * cos(Angle_in[i2]*PI/180);
+				y2 = Scan.ranges[i2] * sin(Angle_in[i2]*PI/180);
+				x3 = Scan.ranges[i3] * cos(Angle_in[i3]*PI/180);
+				y3 = Scan.ranges[i3] * sin(Angle_in[i3]*PI/180);
 				x1 = 2*x2 - x3;
 				y1 = 2*y2 - y3;
-				Scan->ranges[i1] = Scan->ranges[i1] + 0.4 * (sqrt(x1*x1 + y1*y1) - Scan->ranges[i1]);
+				Scan.ranges[i1] = Scan.ranges[i1] + 0.4 * (sqrt(x1*x1 + y1*y1) - Scan.ranges[i1]);
 			}
-			else if(Scan->ranges[i0] !=0 && Scan->ranges[i1] !=0 && Scan->ranges[i2] !=0 && Scan->ranges[i3] !=0 && Scan->ranges[i4] ==0)
+			else if(Scan.ranges[i0] !=0 && Scan.ranges[i1] !=0 && Scan.ranges[i2] !=0 && Scan.ranges[i3] !=0 && Scan.ranges[i4] ==0)
 			{
-				x1 = Scan->ranges[i1] * cos(Angle_in[i1]*PI/180);
-				y1 = Scan->ranges[i1] * sin(Angle_in[i1]*PI/180);
-				x2 = Scan->ranges[i2] * cos(Angle_in[i2]*PI/180);
-				y2 = Scan->ranges[i2] * sin(Angle_in[i2]*PI/180);
+				x1 = Scan.ranges[i1] * cos(Angle_in[i1]*PI/180);
+				y1 = Scan.ranges[i1] * sin(Angle_in[i1]*PI/180);
+				x2 = Scan.ranges[i2] * cos(Angle_in[i2]*PI/180);
+				y2 = Scan.ranges[i2] * sin(Angle_in[i2]*PI/180);
 				x3 = 2*x2 - x1;
 				y3 = 2*y2 - y1;
-				Scan->ranges[i3] = Scan->ranges[i3] + 0.4 * (sqrt(x3*x3 + y3*y3) - Scan->ranges[i3]);
+				Scan.ranges[i3] = Scan.ranges[i3] + 0.4 * (sqrt(x3*x3 + y3*y3) - Scan.ranges[i3]);
 			}
 			else
 			{
@@ -336,37 +353,34 @@ namespace sc_m_c
 	 * output: scan_out 指针
 	 * 功能: 将scan_in的点数扩大到400*ROS_N_MUL倍，然后角度插值，得到用于对外发布的scan_out
 	 */
-	void SCLaser::angle_insert(sensor_msgs::LaserScan::Ptr scan_in, sensor_msgs::LaserScan::Ptr scan_out)
+	void SCLaser::angle_insert(sensor_msgs::LaserScan& scan_in, sensor_msgs::LaserScan& scan_out)
 	{
 		int temp_i, i,angle,temp_Size;
 		float m_fAngle;
 		temp_Size = 500;  //note: 雷达转一圈输出的点数按固定的500*ROS_N_MUL点来输出,tof雷达改为720
-
-		scan_out->ranges.resize(temp_Size*ROS_N_MUL);
-		scan_out->intensities.resize(temp_Size*ROS_N_MUL);
-
+		//scan_out.ranges.resize(temp_Size*ROS_N_MUL);
+		//scan_out.intensities.resize(temp_Size*ROS_N_MUL);
 		for(i=0; i<temp_Size*ROS_N_MUL; i++)
 		{
-			scan_out->ranges[i] = std::numeric_limits<float>::infinity(); //note:将要发布的激光类距离数据清零，保证做插值时其他数据为零
+			scan_out.ranges[i] = std::numeric_limits<float>::infinity(); //note:将要发布的激光类距离数据清零，保证做插值时其他数据为零
 		}
 		for (i=0;i<Size;i++)
 		{
 			temp_i = (int)(Angle_in[i] / (360.0F/(ROS_N_MUL*temp_Size)) + 0.5); //note:计算出对应的插值的位置
 			temp_i = (temp_i >= temp_Size*ROS_N_MUL) ? 0 : temp_i;
 			temp_i = (temp_i < 0) ? 0 : temp_i;
-			if(scan_in->ranges[i] == 0)
-				scan_out->ranges[temp_i] = std::numeric_limits<float>::infinity();
+			if(scan_in.ranges[i] == 0)
+				scan_out.ranges[temp_i] = std::numeric_limits<float>::infinity();
 			else
-				scan_out->ranges[temp_i] = scan_in->ranges[i];
-			scan_out->intensities[temp_i] = scan_out->ranges[temp_i] == 0 ? 0 : 127; //note:距离值为0的数据灰度值为0，距离大于0数据灰度值设为127
+				scan_out.ranges[temp_i] = scan_in.ranges[i];
+			scan_out.intensities[temp_i] = scan_out.ranges[temp_i] == 0 ? 0 : 127; //note:距离值为0的数据灰度值为0，距离大于0数据灰度值设为127
 		}
-
-		scan_out->angle_increment = (2.0*M_PI/(ROS_N_MUL*temp_Size));
-		scan_out->angle_min = 0.0;
-		scan_out->angle_max = 2*M_PI;
-		scan_out->range_min = 0.10;
-		scan_out->range_max = 10.0; //note: mini_m1c0测量的最远距离是12m
-		scan_out->scan_time = clustering_time;
+		scan_out.angle_increment = (2.0*M_PI/(ROS_N_MUL*temp_Size));
+		scan_out.angle_min = 0.0;
+		scan_out.angle_max = 2*M_PI;
+		scan_out.range_min = 0.10;
+		scan_out.range_max = 10.0; //note: mini_m1c0测量的最远距离是12m
+		scan_out.scan_time = clustering_time;
 	}
 
 	/*
@@ -383,7 +397,7 @@ namespace sc_m_c
 	unsigned char serialport_databuf[SERIAL_PORT_DATA_BUF_LEN];
 #define RANGES_TIMP_SIZE 500 //tof雷达改为720
 
-	int SCLaser::poll(sensor_msgs::LaserScan::Ptr scan,int fd)
+	int SCLaser::poll(sensor_msgs::LaserScan& Scan,int fd)
 	{
 		int Rcv=0,cpylen;
 		int temp_depth;
@@ -400,7 +414,7 @@ namespace sc_m_c
 		GyroYawStr DeltaYaw;
 
 		ros::Time begin_time = ros::Time::now ();
-		scan->ranges.resize(RANGES_TIMP_SIZE);
+		//Scan.ranges.resize(RANGES_TIMP_SIZE);
 
 		Rcv = read_port(serialport_databuf, SERIAL_PORT_DATA_BUF_LEN);
 		while(Rcv > 0)
@@ -419,7 +433,7 @@ namespace sc_m_c
 
 			while(M1C1_MiniData.BufferLen >= M1C1_Mini_FRAME_LEN_MIN)
 			{
-				ros::spinOnce(); //note:触发相应消息订阅函数
+				//ros::spinOnce(); //note:触发相应消息订阅函数
 				if(M1C1_MiniData.Frame.PHL == 0xAA
 				&& M1C1_MiniData.Frame.PHH == 0x55
 				&& M1C1_MiniData.Frame.CT == 0x01 //ÆðÊŒ°ü
@@ -436,7 +450,7 @@ namespace sc_m_c
 			    	OriginGyroYaw = GyroYaw.GyroYaw;
 					ZoneStartGyro = 0;
 					temp_depth = (M1C1_MiniData.Frame.Si[0] | (M1C1_MiniData.Frame.Si[1]<<8))/4;
-					scan->ranges[AllAngleIndex] = temp_depth/1000.0F;
+					Scan.ranges[AllAngleIndex] = temp_depth/1000.0F;
 					Angle_in[AllAngleIndex] = (M1C1_MiniData.Frame.FSAL + M1C1_MiniData.Frame.FSAH*256)/128.0;
 					Size = AllAngleIndex+1;
 					M1C1_MiniData.BufferLen = M1C1_MiniData.BufferLen - M1C1_Mini_FRAME_LEN_MIN;
@@ -521,7 +535,7 @@ namespace sc_m_c
 								{
 									if(LidarCoverAngle[i].f_begin < fTempAngle && fTempAngle < LidarCoverAngle[i].f_end)
 									{
-										 scan->ranges[AllAngleIndex]=0;
+										 Scan.ranges[AllAngleIndex]=0;
 									}
 								}
 							}
@@ -534,12 +548,12 @@ namespace sc_m_c
 						   	fTempAngle -= fGyroAngleInc;
 							if(0 <= fTempAngle && fTempAngle <= 360)
 							{
-								scan->ranges[AllAngleIndex] = temp_depth/1000.0F;
+								Scan.ranges[AllAngleIndex] = temp_depth/1000.0F;
 								Angle_in[AllAngleIndex] = 360 - fTempAngle;
 							}
 							else
 							{
-								scan->ranges[AllAngleIndex] = 0;
+								Scan.ranges[AllAngleIndex] = 0;
 								Angle_in[AllAngleIndex] = 0;
 							}
 							AllAngleIndex++;
@@ -594,8 +608,13 @@ int main(int argc, char **argv)
 		ros::NodeHandle n;
 		ros::NodeHandle priv_nh("~");
 
-		sensor_msgs::LaserScan::Ptr scan(new sensor_msgs::LaserScan);
-		sensor_msgs::LaserScan::Ptr scan_publish(new sensor_msgs::LaserScan);
+		sensor_msgs::LaserScan scan_publish;
+		scan_publish.ranges.resize(500*ROS_N_MUL);
+                scan_publish.intensities.resize(500*ROS_N_MUL);
+
+		sensor_msgs::LaserScan scan;
+                scan.ranges.resize(RANGES_TIMP_SIZE);
+		//sensor_msgs::LaserScan::Ptr scan_publish(new sensor_msgs::LaserScan);
 
 		ros::Publisher laser_pub = n.advertise<sensor_msgs::LaserScan>("scan", 1000);
 		//里程计
@@ -623,13 +642,14 @@ int main(int argc, char **argv)
 				{
 					laser.PointCloudFilter(scan);  //note: 滤波函数，如果不用该滤波功能，将该行屏蔽即可。
 					laser.angle_insert(scan,scan_publish); //note:角度插值函数
-					scan_publish->header.frame_id = frame_id;
-					scan_publish->header.stamp = ros::Time::now();
+					scan_publish.header.frame_id = frame_id;
+					scan_publish.header.stamp = ros::Time::now();
 					laser_pub.publish(scan_publish);
 				}
 			}
-
+			usleep(10000);
 		}
+		laser.stop();
 		close(fd);
 		return 0;
 }

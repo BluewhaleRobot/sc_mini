@@ -87,10 +87,11 @@ namespace sc_m_c
 		* @brief Poll the laser to get a new scan. Blocks until a complete new scan is received or close is called.
 		* @param scan LaserScan message pointer to fill in with the scan. The caller is responsible for filling in the ROS timestamp and frame_id
 		*/
-		int poll(sensor_msgs::LaserScan::Ptr scan,int fd);
-		void PointCloudFilter(sensor_msgs::LaserScan::Ptr Scan);
-		void angle_insert(sensor_msgs::LaserScan::Ptr scan_in, sensor_msgs::LaserScan::Ptr scan_out);
-
+		int poll(sensor_msgs::LaserScan& Scan,int fd);
+		void PointCloudFilter(sensor_msgs::LaserScan& Scan);
+		void angle_insert(sensor_msgs::LaserScan& scan_in, sensor_msgs::LaserScan& scan_out);
+                void start();
+		void stop();
 		/**
 		* @brief Close the driver down and prevent the polling loop from advancing
 		*/
