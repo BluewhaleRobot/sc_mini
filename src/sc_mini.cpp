@@ -395,7 +395,7 @@ namespace sc_m_c
 
 #define SERIAL_PORT_DATA_BUF_LEN 4096
 	unsigned char serialport_databuf[SERIAL_PORT_DATA_BUF_LEN];
-#define RANGES_TIMP_SIZE 500 //tof雷达改为720
+#define RANGES_TIMP_SIZE 600 //tof雷达改为720
 
 	int SCLaser::poll(sensor_msgs::LaserScan& Scan,int fd)
 	{
