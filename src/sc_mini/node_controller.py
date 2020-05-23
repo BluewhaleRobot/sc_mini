@@ -27,6 +27,8 @@ def get_galileo_status(status):
     if status.visualStatus == -1:
         VISUAL_FLAG = False
     else:
+        if not VISUAL_FLAG:
+            rospy.set_param("/rplidar_node_manager/keep_running", True)
         VISUAL_FLAG = True
 
 
@@ -34,7 +36,7 @@ if __name__ == "__main__":
     rospy.init_node("sclidar_manager")
     rospy.Subscriber("/scan", rospy.AnyMsg, get_scan)
     rospy.Subscriber("/galileo/status", GalileoStatus, get_galileo_status)
-    rospy.set_param("~keep_running", True)
+    rospy.set_param("/rplidar_node_manager/keep_running", True)
     uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
     roslaunch.configure_logging(uuid)
     sclidar_launch = roslaunch.parent.ROSLaunchParent(
@@ -43,7 +45,7 @@ if __name__ == "__main__":
     rospy.loginfo("sclidar started")
     while not rospy.is_shutdown():
         time.sleep(5)
-        keep_running_flag = rospy.get_param("~keep_running", True)
+        keep_running_flag = rospy.get_param("/rplidar_node_manager/keep_running", True)
         # 处于导航状态下且无法收到雷达数据
         if int(time.time()) - LAST_UPDATE_TIME > 5 and VISUAL_FLAG and keep_running_flag:
             rospy.logerr("restart sclidar node")
@@ -53,10 +55,11 @@ if __name__ == "__main__":
                 uuid, ["/home/xiaoqiang/Documents/ros/src/sc_mini/launch/sc_mini.launch"])
             sclidar_launch.start()
         # 在停用状态下却有雷达数据
-        # if int(time.time()) - LAST_UPDATE_TIME < 5 and not keep_running_flag:
-        #     if rosservice.get_service_node("/stop_motor") is not None:
-        #         cmd = "rosservice call /stop_motor"
-        #         new_env = os.environ.copy()
-        #         subprocess.Popen(
-        #             cmd, shell=True, env=new_env)
-        #         time.sleep(5)
+        if int(time.time()) - LAST_UPDATE_TIME < 5 and (not VISUAL_FLAG or not keep_running_flag):
+            if rosservice.get_service_node("/stop_motor") is not None:
+                cmd = "rosservice call /stop_motor"
+                new_env = os.environ.copy()
+                subprocess.Popen(
+                    cmd, shell=True, env=new_env)
+                time.sleep(5)
+            sclidar_launch.shutdown()

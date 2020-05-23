@@ -7,10 +7,10 @@
 
 #define ANGLE_MIN_NUMBERS 365
 
-#define ANGLE_MAX_NUMBERS 16000                                                                                                                 
+#define ANGLE_MAX_NUMBERS 16000
 #define ANGLE_MAX_RADIUS 18000
 #define AngelJumpDel 50
-#define M_UART_BUF_SIZE 10000                                                                 
+#define M_UART_BUF_SIZE 10000
 #define POINTS_OF_HEAD 3
 #define POINTS_PER_ROUND 1440
 #define B_HEAD0 0x55
@@ -83,7 +83,7 @@ namespace sc_m_c
 		*/
 		~SCLaser();
 
-		/** 
+		/**
 		* @brief Poll the laser to get a new scan. Blocks until a complete new scan is received or close is called.
 		* @param scan LaserScan message pointer to fill in with the scan. The caller is responsible for filling in the ROS timestamp and frame_id
 		*/
@@ -109,4 +109,5 @@ int open_port(const char *port, int baud_rate);
 int read_port(unsigned char *pbuf, unsigned int len);
 int write_port(unsigned char *pbuf, unsigned int len);
 int close_port();
+int flush_port();
 #endif

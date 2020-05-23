@@ -25,9 +25,16 @@
 #include <arpa/inet.h>
 #include <sstream>
 
+#include "std_srvs/Empty.h"
+#include <boost/thread.hpp>
+
 #define ROS_N_MUL 2
 
 using namespace std;
+
+static boost::mutex mStausMutex_;
+static int laser_fd=-1;
+static bool laser_start_flag = true;
 
 unsigned char start_port[10]={0xA5,0xF0};
 unsigned char end_port[10]={0xA5,0xF5};
@@ -593,12 +600,40 @@ namespace sc_m_c
 	}
 }
 
+bool stop_motor(std_srvs::Empty::Request &req,
+                               std_srvs::Empty::Response &res)
+{
+	boost::mutex::scoped_lock lock(mStausMutex_);
+  if(laser_fd==-1 || !laser_start_flag)
+       return false;
+  ROS_DEBUG("Stop motor");
+	unsigned int len = 2;
+  int result = write_port(end_port,len);
+	laser_start_flag = false;
+	usleep(10000);
+	flush_port();
+  return true;
+}
+
+bool start_motor(std_srvs::Empty::Request &req,
+                               std_srvs::Empty::Response &res)
+{
+	boost::mutex::scoped_lock lock(mStausMutex_);
+  if(laser_fd == -1 || laser_start_flag)
+       return false;
+  ROS_DEBUG("Start motor");
+	unsigned int len = 2;
+	int result = write_port(start_port,len);
+	usleep(10000);
+	laser_start_flag = true;
+  return true;
+}
+
 int main(int argc, char **argv)
 {
 		printf("sc_mini start\n");
 		ros::init(argc, argv, "sc_mini");
 
-		int fd;
 		int baud_rate;
 		int log_cnt = 0;
 		lidar_start_count = 5;
@@ -625,31 +660,41 @@ int main(int argc, char **argv)
 
 		const char *port_t = port.data();
 
-		fd = open_port(port_t, 115200);
+		//ros::ServiceServer stop_motor_service = n.advertiseService("stop_motor", stop_motor);
+    //ros::ServiceServer start_motor_service = n.advertiseService("start_motor", start_motor);
+
+		laser_fd = open_port(port_t, 115200);
 		sc_m_c::SCLaser laser;
 
 		//订阅里程计数据
 		//ros::Subscriber sub = n.subscribe("odom", 1000, odomCallback);
 		while (ros::ok())
 		{
-			if(laser.poll(scan,fd) == 0)
 			{
-				if(lidar_start_count > 0)//丢弃前五圈激光雷达数据
+				boost::mutex::scoped_lock lock(mStausMutex_);
+				if(laser_start_flag)
 				{
-					lidar_start_count--;
-				}
-				if(lidar_start_count == 0)
-				{
-					laser.PointCloudFilter(scan);  //note: 滤波函数，如果不用该滤波功能，将该行屏蔽即可。
-					laser.angle_insert(scan,scan_publish); //note:角度插值函数
-					scan_publish.header.frame_id = frame_id;
-					scan_publish.header.stamp = ros::Time::now();
-					laser_pub.publish(scan_publish);
+					if(laser.poll(scan,laser_fd) == 0)
+					{
+						if(lidar_start_count > 0)//丢弃前五圈激光雷达数据
+						{
+							lidar_start_count--;
+						}
+						if(lidar_start_count == 0)
+						{
+							laser.PointCloudFilter(scan);  //note: 滤波函数，如果不用该滤波功能，将该行屏蔽即可。
+							laser.angle_insert(scan,scan_publish); //note:角度插值函数
+							scan_publish.header.frame_id = frame_id;
+							scan_publish.header.stamp = ros::Time::now();
+							laser_pub.publish(scan_publish);
+						}
+					}
 				}
 			}
 			usleep(10000);
+			//ros::spinOnce();
 		}
 		laser.stop();
-		close(fd);
+		close(laser_fd);
 		return 0;
 }
