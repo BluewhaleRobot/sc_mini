@@ -695,6 +695,7 @@ int main(int argc, char **argv)
 			//ros::spinOnce();
 		}
 		laser.stop();
+                usleep(100000);
 		close(laser_fd);
 		return 0;
 }
