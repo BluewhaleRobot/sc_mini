@@ -650,6 +650,7 @@ int main(int argc, char **argv)
 			usleep(10000);
 		}
 		laser.stop();
+                usleep(100000);
 		close(fd);
 		return 0;
 }
