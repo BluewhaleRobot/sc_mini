@@ -364,7 +364,7 @@ namespace sc_m_c
 	{
 		int temp_i, i,angle,temp_Size;
 		float m_fAngle;
-		temp_Size = 500;  //note: 雷达转一圈输出的点数按固定的500*ROS_N_MUL点来输出,tof雷达改为720
+		temp_Size = 180;  //note: 雷达转一圈输出的点数按固定的180*ROS_N_MUL点来输出,tof雷达改为720
 		//scan_out.ranges.resize(temp_Size*ROS_N_MUL);
 		//scan_out.intensities.resize(temp_Size*ROS_N_MUL);
 		for(i=0; i<temp_Size*ROS_N_MUL; i++)
@@ -644,19 +644,19 @@ int main(int argc, char **argv)
 		ros::NodeHandle priv_nh("~");
 
 		sensor_msgs::LaserScan scan_publish;
-		scan_publish.ranges.resize(500*ROS_N_MUL);
-                scan_publish.intensities.resize(500*ROS_N_MUL);
+		scan_publish.ranges.resize(360);
+        scan_publish.intensities.resize(360);
 
 		sensor_msgs::LaserScan scan;
                 scan.ranges.resize(RANGES_TIMP_SIZE);
 		//sensor_msgs::LaserScan::Ptr scan_publish(new sensor_msgs::LaserScan);
 
-		ros::Publisher laser_pub = n.advertise<sensor_msgs::LaserScan>("scan", 1000);
+		ros::Publisher laser_pub = n.advertise<sensor_msgs::LaserScan>("scan", 10);
 		//里程计
 		//ros::Subscriber sub = n.subscribe("odom", 1000, odomCallback);
 		priv_nh.param("baud_rate", baud_rate, 115200);
 		priv_nh.param("frame_id", frame_id, std::string("base_link"));
-		priv_nh.param("port", port, std::string("/dev/ttyS3"));
+		priv_nh.param("port", port, std::string("/dev/sc_mini"));
 
 		const char *port_t = port.data();
 
