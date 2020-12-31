@@ -4,6 +4,6 @@
     <param name="port" type="string" value="/dev/sc_mini"/>
     <param name="baud_rate" type="int" value="115200"/>
   </node>
-  <node pkg="tf" type="static_transform_publisher" name="laserlink_broadcaster" args="0.1 0 0.15 3.1415926 0 0  base_link  laser 100"/>
+  <node pkg="tf" type="static_transform_publisher" name="laserlink_broadcaster" args="0.32 0 0.15 3.1415926 0 0  base_link  laser 100"/>
   <include file="$(find laser_filters)/examples/shadow_filter_scmini.launch"/>
 </launch>
